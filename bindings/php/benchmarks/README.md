@@ -7,6 +7,9 @@ Isolated Docker-based benchmark comparing CISV PHP extension against native PHP 
 | Library | Description |
 |---------|-------------|
 | **cisv (parse)** | High-performance C parser with SIMD optimizations (PHP extension) |
+| **cisv (iterator)** | Row-by-row streaming parser (minimal peak memory) |
+| **cisv (parallel)** | Multi-threaded parsing with PHP array output |
+| **cisv (bench)** | Raw parser benchmark mode (count only, no PHP marshaling) |
 | **cisv (count)** | Fast row counting using C library |
 | **fgetcsv()** | PHP's built-in file-based CSV reader |
 | **str_getcsv()** | PHP's string-based CSV parser |
@@ -22,35 +25,35 @@ Isolated Docker-based benchmark comparing CISV PHP extension against native PHP 
 
 ```bash
 # From repository root
-docker build -t sanix-darker/cisv-php-benchmarks -f bindings/php/benchmarks/Dockerfile .
+docker build -t cisv-php-bench -f bindings/php/benchmarks/Dockerfile .
 ```
 
 ### Run the benchmark
 
 ```bash
 # Default: 1M rows x 7 columns with CPU/RAM isolation
-docker run -ti --cpus=2 --memory=4g --memory-swap=4g --rm sanix-darker/cisv-php-benchmarks:latest
+docker run -ti --cpus=2 --memory=4g --memory-swap=4g --rm cisv-php-bench
 ```
 
 ### Custom configurations
 
 ```bash
 # 500K rows
-docker run -ti --cpus=2 --memory=4g --rm sanix-darker/cisv-php-benchmarks:latest \
+docker run -ti --cpus=2 --memory=4g --rm cisv-php-bench \
     --rows=500000
 
 # 10 iterations for better accuracy
-docker run -ti --cpus=2 --memory=4g --rm sanix-darker/cisv-php-benchmarks:latest \
+docker run -ti --cpus=2 --memory=4g --rm cisv-php-bench \
     --rows=1000000 --iterations=10
 
 # Custom column count
-docker run -ti --cpus=2 --memory=4g --rm sanix-darker/cisv-php-benchmarks:latest \
+docker run -ti --cpus=2 --memory=4g --rm cisv-php-bench \
     --rows=1000000 --cols=20
 
 # Use an existing CSV file (mount volume)
 docker run -ti --cpus=2 --memory=4g --rm \
     -v /path/to/data:/data \
-    sanix-darker/cisv-php-benchmarks:latest \
+    cisv-php-bench \
     --file=/data/large.csv
 ```
 
