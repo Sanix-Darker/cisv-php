@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y php-cli php-dev php-pear build-essential
+      - name: Build and validate
+        run: |
+          make -C core all
+          cd bindings/php
+          phpize
+          ./configure --enable-cisv
+          make -j"$(nproc)"
+          sudo make install
+          php -d extension=cisv.so scripts/verify_api.php
