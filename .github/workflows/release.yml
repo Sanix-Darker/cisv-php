@@ -25,8 +25,30 @@ jobs:
           sudo make install
           php -d extension=cisv.so scripts/verify_api.php
 
-  release:
+  publish-packagist:
     needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Packagist secrets
+        run: |
+          if [ -z "${PACKAGIST_USERNAME:-}" ] || [ -z "${PACKAGIST_TOKEN:-}" ]; then
+            echo "PACKAGIST_USERNAME and/or PACKAGIST_TOKEN secret missing"
+            exit 1
+          fi
+        env:
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
+      - name: Trigger Packagist update
+        run: |
+          curl -fsSL -X POST "https://packagist.org/api/update-package?username=${PACKAGIST_USERNAME}&apiToken=${PACKAGIST_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"repository":{"url":"https://github.com/Sanix-Darker/cisv-php"}}'
+        env:
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
+
+  release:
+    needs: publish-packagist
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
