@@ -23,12 +23,14 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="$(cat VERSION)"
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
           EXT_VERSION="$(jq -r '.provide["ext-cisv"]' composer.json)"
-          [ "$TAG_VERSION" = "$VERSION" ] || {
-            echo "Tag/version mismatch: tag=$TAG_VERSION VERSION=$VERSION"
-            exit 1
-          }
+          if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG_VERSION="${GITHUB_REF_NAME#v}"
+            [ "$TAG_VERSION" = "$VERSION" ] || {
+              echo "Tag/version mismatch: tag=$TAG_VERSION VERSION=$VERSION"
+              exit 1
+            }
+          fi
           [ "$EXT_VERSION" = "$VERSION" ] || {
             echo "Composer/version mismatch: composer.ext-cisv=$EXT_VERSION VERSION=$VERSION"
             exit 1
@@ -52,11 +54,26 @@ jobs:
         env:
           PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
           PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
-      - name: Trigger Packagist update
+      - name: Create/update package on Packagist
         run: |
-          curl -fsSL -X POST "https://packagist.org/api/update-package?username=${PACKAGIST_USERNAME}&apiToken=${PACKAGIST_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d '{"repository":{"url":"https://github.com/Sanix-Darker/cisv-php"}}'
+          set -euo pipefail
+          PAYLOAD='{"repository":{"url":"https://github.com/Sanix-Darker/cisv-php"}}'
+          for endpoint in create-package update-package; do
+            CODE="$(curl -sS -o /tmp/packagist-${endpoint}.json -w "%{http_code}" -X POST \
+              "https://packagist.org/api/${endpoint}?username=${PACKAGIST_USERNAME}&apiToken=${PACKAGIST_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "${PAYLOAD}" || true)"
+            cat /tmp/packagist-${endpoint}.json
+            echo
+            if [ "${endpoint}" = "create-package" ] && [ "${CODE}" = "400" ]; then
+              echo "Packagist create-package returned 400 (likely already exists), continuing."
+              continue
+            fi
+            if [ "${CODE}" -lt 200 ] || [ "${CODE}" -ge 300 ]; then
+              echo "Packagist ${endpoint} failed with HTTP ${CODE}"
+              exit 1
+            fi
+          done
         env:
           PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
           PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
@@ -71,7 +88,10 @@ jobs:
           fetch-depth: 0
       - name: Update cisv-core submodule to latest main
         run: git submodule update --init --remote --recursive
+      - name: Resolve release tag
+        id: rel
+        run: echo "tag=v$(cat VERSION)" >> "$GITHUB_OUTPUT"
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ steps.rel.outputs.tag }}
           generate_release_notes: true
