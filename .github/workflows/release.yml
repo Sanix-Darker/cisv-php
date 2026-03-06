@@ -45,6 +45,12 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Update cisv-core submodule to latest main
+        run: git submodule update --init --remote --recursive
       - name: Validate Packagist secrets
         run: |
           if [ -z "${PACKAGIST_USERNAME:-}" ] || [ -z "${PACKAGIST_TOKEN:-}" ]; then
