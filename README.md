@@ -1,14 +1,16 @@
 # cisv-php
+
 ![PHP Install](./assets/php-install.png)
+
 [![CI](https://github.com/Sanix-Darker/cisv-php/actions/workflows/ci.yml/badge.svg)](https://github.com/Sanix-Darker/cisv-php/actions/workflows/ci.yml)
+
 [![Packagist Version](https://img.shields.io/packagist/v/sanix-darker/cisv.svg)](https://packagist.org/packages/sanix-darker/cisv)
-[Packagist Package](https://packagist.org/packages/sanix-darker/cisv)
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 PHP extension distribution for CISV with SIMD-accelerated CSV parsing via native C code.
 
-## Features
+## FEATURES
 
 - Native extension parser for PHP
 - Full parse API (`parseFile`, `parseString`)
@@ -16,9 +18,9 @@ PHP extension distribution for CISV with SIMD-accelerated CSV parsing via native
 - Fast row counting (`CisvParser::countRows`)
 - Better memory behavior with iterator mode on very large files
 
-## Installation
+## INSTALLATION
 
-### From source
+### FROM SOURCE
 
 ```bash
 git clone --recurse-submodules https://github.com/Sanix-Darker/cisv-php
@@ -37,7 +39,7 @@ Then enable extension in `php.ini`:
 extension=cisv.so
 ```
 
-## Core Dependency (Submodule)
+## CORE DEPENDENCY (SUBMODULE)
 
 This repository tracks `cisv-core` via the `./core` git submodule.
 
@@ -49,7 +51,7 @@ git submodule update --init --remote --recursive
 
 CI and release workflows also run this update command, so new `cisv-core` releases are pulled automatically during builds.
 
-## Quick Start
+## QUICK START
 
 ```php
 <?php
@@ -59,9 +61,9 @@ $rows = $parser->parseFile('data.csv');
 print_r($rows[0]);
 ```
 
-## API Examples
+## API EXAMPLES
 
-### Parse file and string
+### PARSE FILE AND STRING
 
 ```php
 <?php
@@ -71,7 +73,7 @@ $fileRows = $parser->parseFile('data.csv');
 $stringRows = $parser->parseString("id,name\n1,alice\n2,bob\n");
 ```
 
-### Fast row counting
+### FAST ROW COUNTING
 
 ```php
 <?php
@@ -80,7 +82,7 @@ $total = CisvParser::countRows('large.csv');
 echo "Rows: $total\n";
 ```
 
-### Iterator mode (recommended for huge files)
+### ITERATOR MODE (RECOMMENDED FOR HUGE FILES)
 
 ```php
 <?php
@@ -98,7 +100,7 @@ while (($row = $parser->fetchRow()) !== false) {
 $parser->closeIterator();
 ```
 
-## Examples Directory
+## EXAMPLES DIRECTORY
 
 Runnable examples are available in [`examples/`](./examples):
 
@@ -106,22 +108,23 @@ Runnable examples are available in [`examples/`](./examples):
 - `iterator.php`
 - `sample.csv`
 
-## Validation
+## VALIDATION
 
 ```bash
 php -d extension=cisv/modules/cisv.so cisv/scripts/verify_api.php
 ```
 
-## Benchmarks
-![PHP Benchmarks](./assets/benchmark-php.png)
+## BENCHMARKS
 
 ```bash
 docker build -t cisv-php-bench -f cisv/benchmarks/Dockerfile .
 docker run --rm --platform linux/amd64 --cpus=2 --memory=4g cisv-php-bench
 ```
 
+![PHP Benchmarks](./assets/benchmark-php.png)
+
 The benchmark output includes both full parse and iterator paths (including `cisv-iterator`).
 
-## Upstream Core
+## UPSTREAM CORE
 
 - cisv-core: https://github.com/Sanix-Darker/cisv-core
