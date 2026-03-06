@@ -4,10 +4,10 @@ PHP_ARG_ENABLE(cisv, whether to enable cisv support,
 
 if test "$PHP_CISV" != "no"; then
   dnl Add include path for core library headers
-  PHP_ADD_INCLUDE([$srcdir/../../core/core/include])
+  PHP_ADD_INCLUDE([$srcdir/../core/core/include])
 
   dnl Link against the pre-built libcisv library
-  PHP_ADD_LIBRARY_WITH_PATH(cisv, $srcdir/../../core/core/build, CISV_SHARED_LIBADD)
+  PHP_ADD_LIBRARY_WITH_PATH(cisv, $srcdir/../core/core/build, CISV_SHARED_LIBADD)
 
   dnl Link pthread for parallel parsing support
   PHP_ADD_LIBRARY(pthread, 1, CISV_SHARED_LIBADD)
