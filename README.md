@@ -1,4 +1,5 @@
 # cisv-php
+![PHP Install](./assets/php-install.png)
 [![CI](https://github.com/Sanix-Darker/cisv-php/actions/workflows/ci.yml/badge.svg)](https://github.com/Sanix-Darker/cisv-php/actions/workflows/ci.yml)
 [![Packagist Version](https://img.shields.io/packagist/v/sanix-darker/cisv.svg)](https://packagist.org/packages/sanix-darker/cisv)
 [Packagist Package](https://packagist.org/packages/sanix-darker/cisv)
@@ -112,6 +113,7 @@ php -d extension=cisv/modules/cisv.so cisv/scripts/verify_api.php
 ```
 
 ## Benchmarks
+![PHP Benchmarks](./assets/benchmark-php.png)
 
 ```bash
 docker build -t cisv-php-bench -f cisv/benchmarks/Dockerfile .
