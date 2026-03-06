@@ -57,6 +57,11 @@ jobs:
       - name: Create/update package on Packagist
         run: |
           set -euo pipefail
+          VERSION="$(cat VERSION)"
+          if curl -fsSL "https://repo.packagist.org/p2/sanix-darker/cisv.json" | grep -q "\"version\":\"v${VERSION}\""; then
+            echo "Packagist already indexes v${VERSION}; skipping API update trigger."
+            exit 0
+          fi
           PAYLOAD='{"repository":{"url":"https://github.com/Sanix-Darker/cisv-php"}}'
           for endpoint in create-package update-package; do
             CODE="$(curl -sS -o /tmp/packagist-${endpoint}.json -w "%{http_code}" -X POST \
