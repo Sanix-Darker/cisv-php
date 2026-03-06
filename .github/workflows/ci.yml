@@ -5,8 +5,23 @@ on:
   pull_request:
 
 jobs:
+  version-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify VERSION matches composer provide ext-cisv
+        run: |
+          set -euo pipefail
+          VERSION="$(cat VERSION)"
+          EXT_VERSION="$(jq -r '.provide["ext-cisv"]' composer.json)"
+          [ "$VERSION" = "$EXT_VERSION" ] || {
+            echo "Version mismatch: VERSION=$VERSION composer.ext-cisv=$EXT_VERSION"
+            exit 1
+          }
+
   php:
     runs-on: ubuntu-latest
+    needs: version-sync
     steps:
       - uses: actions/checkout@v4
       - name: Install deps

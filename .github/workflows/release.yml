@@ -14,6 +14,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate tag and version sync
+        run: |
+          set -euo pipefail
+          VERSION="$(cat VERSION)"
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          EXT_VERSION="$(jq -r '.provide["ext-cisv"]' composer.json)"
+          [ "$TAG_VERSION" = "$VERSION" ] || {
+            echo "Tag/version mismatch: tag=$TAG_VERSION VERSION=$VERSION"
+            exit 1
+          }
+          [ "$EXT_VERSION" = "$VERSION" ] || {
+            echo "Composer/version mismatch: composer.ext-cisv=$EXT_VERSION VERSION=$VERSION"
+            exit 1
+          }
       - run: |
           sudo apt-get update
           sudo apt-get install -y php-cli php-dev php-pear build-essential
