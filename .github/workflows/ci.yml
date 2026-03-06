@@ -41,7 +41,7 @@ jobs:
       - name: Build and validate
         run: |
           make -C core/core all
-          cd bindings/php
+          cd cisv
           phpize
           ./configure --enable-cisv
           make -j"$(nproc)"

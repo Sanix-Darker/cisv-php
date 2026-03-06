@@ -23,7 +23,7 @@ PHP extension distribution for CISV with SIMD-accelerated CSV parsing via native
 git clone --recurse-submodules https://github.com/Sanix-Darker/cisv-php
 cd cisv-php
 make -C core/core all
-cd bindings/php
+cd cisv
 phpize
 ./configure --enable-cisv
 make -j"$(nproc)"
@@ -108,13 +108,13 @@ Runnable examples are available in [`examples/`](./examples):
 ## Validation
 
 ```bash
-php -d extension=bindings/php/modules/cisv.so bindings/php/scripts/verify_api.php
+php -d extension=cisv/modules/cisv.so cisv/scripts/verify_api.php
 ```
 
 ## Benchmarks
 
 ```bash
-docker build -t cisv-php-bench -f bindings/php/benchmarks/Dockerfile .
+docker build -t cisv-php-bench -f cisv/benchmarks/Dockerfile .
 docker run --rm --platform linux/amd64 --cpus=2 --memory=4g cisv-php-bench
 ```
 

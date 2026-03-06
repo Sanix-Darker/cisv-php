@@ -13,7 +13,7 @@ if (!class_exists('CisvParser')) {
 }
 
 $repoRoot = dirname(__DIR__, 3);
-$stubFile = $repoRoot . '/bindings/php/stubs/cisv.php';
+$stubFile = $repoRoot . '/cisv/stubs/cisv.php';
 
 if (!is_file($stubFile)) {
     fwrite(STDERR, "[cisv][php-api] stub file not found: {$stubFile}\n");

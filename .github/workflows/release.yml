@@ -37,7 +37,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y php-cli php-dev php-pear build-essential
           make -C core/core all
-          cd bindings/php
+          cd cisv
           phpize
           ./configure --enable-cisv
           make -j"$(nproc)"

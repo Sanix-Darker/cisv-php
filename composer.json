@@ -25,7 +25,7 @@
   "support": {
     "issues": "https://github.com/Sanix-Darker/cisv/issues",
     "source": "https://github.com/Sanix-Darker/cisv",
-    "docs": "https://github.com/Sanix-Darker/cisv/blob/master/bindings/php/README.md"
+    "docs": "https://github.com/Sanix-Darker/cisv/blob/master/cisv/README.md"
   },
   "require": {
     "php": ">=8.1"
@@ -49,7 +49,7 @@
   },
   "autoload": {
     "files": [
-      "bindings/php/stubs/cisv.php"
+      "cisv/stubs/cisv.php"
     ]
   },
   "scripts": {
@@ -57,7 +57,7 @@
       "@php -r \"echo PHP_EOL . '\\033[33m[CISV] Native extension requires compilation.\\033[0m' . PHP_EOL;\""
     ],
     "post-update-cmd": [
-      "@php -r \"echo PHP_EOL . '\\033[33m[CISV] Run: composer build-ext && sudo make -C vendor/sanix-darker/cisv/bindings/php install\\033[0m' . PHP_EOL;\""
+      "@php -r \"echo PHP_EOL . '\\033[33m[CISV] Run: composer build-ext && sudo make -C vendor/sanix-darker/cisv/cisv install\\033[0m' . PHP_EOL;\""
     ],
     "check-deps": [
       "@php -r \"if(!shell_exec('which phpize')) { echo 'ERROR: phpize not found. Install php-dev package.' . PHP_EOL; exit(1); }\"",
@@ -65,28 +65,28 @@
     ],
     "build-core": [
       "echo 'Building CISV core library...'",
-      "make -C core clean all"
+      "make -C core/core clean all"
     ],
     "build-ext": [
       "@check-deps",
       "@build-core",
       "echo 'Building PHP extension...'",
-      "cd bindings/php && phpize && ./configure --enable-cisv && make clean && make",
+      "cd cisv && phpize && ./configure --enable-cisv && make clean && make",
       "echo ''",
-      "echo '✓ Build complete! Extension at: bindings/php/modules/cisv.so'",
+      "echo '✓ Build complete! Extension at: cisv/modules/cisv.so'",
       "echo ''",
-      "echo 'To install system-wide: sudo make -C bindings/php install'",
-      "echo 'To load temporarily:    php -d extension=bindings/php/modules/cisv.so your_script.php'"
+      "echo 'To install system-wide: sudo make -C cisv install'",
+      "echo 'To load temporarily:    php -d extension=cisv/modules/cisv.so your_script.php'"
     ],
     "install-ext": [
       "@build-ext",
-      "sudo make -C bindings/php install",
+      "sudo make -C cisv install",
       "echo ''",
       "echo '✓ Extension installed! Add to php.ini: extension=cisv.so'"
     ],
     "test": "phpunit",
     "test-ext": [
-      "@php -d extension=bindings/php/modules/cisv.so -r \"echo class_exists('CisvParser') ? '✓ Extension loaded successfully!' : '✗ Extension not loaded'; echo PHP_EOL;\""
+      "@php -d extension=cisv/modules/cisv.so -r \"echo class_exists('CisvParser') ? '✓ Extension loaded successfully!' : '✗ Extension not loaded'; echo PHP_EOL;\""
     ]
   },
   "scripts-descriptions": {

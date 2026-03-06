@@ -25,7 +25,7 @@ Isolated Docker-based benchmark comparing CISV PHP extension against native PHP 
 
 ```bash
 # From repository root
-docker build -t cisv-php-bench -f bindings/php/benchmarks/Dockerfile .
+docker build -t cisv-php-bench -f cisv/benchmarks/Dockerfile .
 ```
 
 ### Run the benchmark
@@ -72,7 +72,7 @@ To run benchmarks locally without Docker:
 
 ```bash
 # Build the PHP extension
-cd bindings/php
+cd cisv
 phpize
 ./configure
 make

@@ -14,7 +14,7 @@ WORKDIR /benchmark/cisv
 RUN make clean || true && make core
 
 # Build PHP extension
-WORKDIR /benchmark/cisv/bindings/php
+WORKDIR /benchmark/cisv/cisv
 RUN phpize && ./configure && make
 
 # Install composer and league/csv for benchmark comparison
@@ -24,7 +24,7 @@ RUN mkdir -p /tmp/csv_bench && cd /tmp/csv_bench && \
     echo '{"require": {"league/csv": "^9.0"}}' > composer.json && \
     composer install --no-dev --no-interaction
 
-COPY bindings/php/benchmarks/benchmark.php /benchmark/
+COPY cisv/benchmarks/benchmark.php /benchmark/
 
 WORKDIR /benchmark
-ENTRYPOINT ["php", "-d", "extension=/benchmark/cisv/bindings/php/modules/cisv.so", "-d", "memory_limit=2G", "/benchmark/benchmark.php"]
+ENTRYPOINT ["php", "-d", "extension=/benchmark/cisv/cisv/modules/cisv.so", "-d", "memory_limit=2G", "/benchmark/benchmark.php"]

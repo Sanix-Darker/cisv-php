@@ -3,7 +3,7 @@ all: core php
 core:
 	$(MAKE) -C core/core all
 php: core
-	cd bindings/php && phpize && ./configure --enable-cisv && $(MAKE)
+	cd cisv && phpize && ./configure --enable-cisv && $(MAKE)
 clean:
 	$(MAKE) -C core/core clean
-	cd bindings/php && $(MAKE) clean || true
+	cd cisv && $(MAKE) clean || true
