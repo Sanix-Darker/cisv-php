@@ -58,7 +58,8 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="$(cat VERSION)"
-          if curl -fsSL "https://repo.packagist.org/p2/sanix-darker/cisv.json" | grep -q "\"version\":\"v${VERSION}\""; then
+          PACKAGIST_JSON="$(curl -fsSL "https://repo.packagist.org/p2/sanix-darker/cisv.json")"
+          if printf '%s' "${PACKAGIST_JSON}" | grep -q "\"version\":\"v${VERSION}\""; then
             echo "Packagist already indexes v${VERSION}; skipping API update trigger."
             exit 0
           fi
