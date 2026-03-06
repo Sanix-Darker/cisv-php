@@ -22,7 +22,7 @@ PHP extension distribution for CISV with SIMD-accelerated CSV parsing via native
 ```bash
 git clone --recurse-submodules https://github.com/Sanix-Darker/cisv-php
 cd cisv-php
-make -C core all
+make -C core/core all
 cd bindings/php
 phpize
 ./configure --enable-cisv
