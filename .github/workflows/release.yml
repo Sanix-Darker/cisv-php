@@ -36,13 +36,8 @@ jobs:
       - run: |
           sudo apt-get update
           sudo apt-get install -y php-cli php-dev php-pear build-essential
-          make -C core/core all
-          cd cisv
-          phpize
-          ./configure --enable-cisv
-          make -j"$(nproc)"
-          sudo make install
-          php -d extension=cisv.so scripts/verify_api.php
+          make all
+          make test
 
   publish-packagist:
     needs: validate
