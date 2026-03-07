@@ -60,7 +60,7 @@ jobs:
         env:
           PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
           PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
-      - name: Create/update package on Packagist
+      - name: Update package on Packagist
         run: |
           set -euo pipefail
           VERSION="$(cat VERSION)"
@@ -69,31 +69,20 @@ jobs:
             echo "Packagist already indexes v${VERSION}; skipping API update trigger."
             exit 0
           fi
-          PAYLOAD='{"repository":{"url":"https://github.com/Sanix-Darker/cisv-php"}}'
-          for endpoint in create-package update-package; do
-            CODE="$(curl -sS -o /tmp/packagist-${endpoint}.json -w "%{http_code}" -X POST \
-              "https://packagist.org/api/${endpoint}?username=${PACKAGIST_USERNAME}&apiToken=${PACKAGIST_TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d "${PAYLOAD}" || true)"
-            cat /tmp/packagist-${endpoint}.json
-            echo
-            if [ "${endpoint}" = "create-package" ] && [ "${CODE}" = "400" ]; then
-              echo "Packagist create-package returned 400 (likely already exists), continuing."
-              continue
-            fi
-            if [ "${endpoint}" = "create-package" ] && [ "${CODE}" = "406" ] && grep -qi "already exists" "/tmp/packagist-${endpoint}.json"; then
-              echo "Packagist create-package returned 406 (already exists), continuing."
-              continue
-            fi
-            if [ "${endpoint}" = "update-package" ] && [ "${CODE}" = "404" ] && grep -qi "does user maintain the package" "/tmp/packagist-${endpoint}.json"; then
-              echo "Packagist update-package returned 404 (token user is not maintainer); continuing without failing release."
-              continue
-            fi
-            if [ "${CODE}" -lt 200 ] || [ "${CODE}" -ge 300 ]; then
-              echo "Packagist ${endpoint} failed with HTTP ${CODE}"
-              exit 1
-            fi
-          done
+
+          # Match working cisv workflow API contract: update-package with repository string payload.
+          PAYLOAD='{"repository":"https://github.com/Sanix-Darker/cisv-php"}'
+          CODE="$(curl -sS -o /tmp/packagist-update.json -w "%{http_code}" -X POST \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}" \
+            "https://packagist.org/api/update-package?username=${PACKAGIST_USERNAME}&apiToken=${PACKAGIST_TOKEN}" || true)"
+          cat /tmp/packagist-update.json
+          echo
+
+          if [ "${CODE}" -lt 200 ] || [ "${CODE}" -ge 300 ]; then
+            echo "Packagist update-package failed with HTTP ${CODE}"
+            exit 1
+          fi
         env:
           PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
           PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
