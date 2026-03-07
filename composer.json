@@ -21,11 +21,11 @@
       "email": "s4nixd@gmail.com"
     }
   ],
-  "homepage": "https://github.com/Sanix-Darker/cisv",
+  "homepage": "https://github.com/Sanix-Darker/cisv-php",
   "support": {
-    "issues": "https://github.com/Sanix-Darker/cisv/issues",
-    "source": "https://github.com/Sanix-Darker/cisv",
-    "docs": "https://github.com/Sanix-Darker/cisv/blob/master/cisv/README.md"
+    "issues": "https://github.com/Sanix-Darker/cisv-php/issues",
+    "source": "https://github.com/Sanix-Darker/cisv-php",
+    "docs": "https://github.com/Sanix-Darker/cisv-php/blob/main/cisv/README.md"
   },
   "require": {
     "php": ">=8.1"
