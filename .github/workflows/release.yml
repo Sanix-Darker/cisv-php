@@ -81,6 +81,10 @@ jobs:
               echo "Packagist create-package returned 400 (likely already exists), continuing."
               continue
             fi
+            if [ "${endpoint}" = "create-package" ] && [ "${CODE}" = "406" ] && grep -qi "already exists" "/tmp/packagist-${endpoint}.json"; then
+              echo "Packagist create-package returned 406 (already exists), continuing."
+              continue
+            fi
             if [ "${CODE}" -lt 200 ] || [ "${CODE}" -ge 300 ]; then
               echo "Packagist ${endpoint} failed with HTTP ${CODE}"
               exit 1
