@@ -1,5 +1,7 @@
-.PHONY: core php all test clean
+.PHONY: core php all test clean update-core
 all: core php
+update-core:
+	git submodule update --init --remote --recursive core
 core:
 	$(MAKE) -C core/core all
 php: core
