@@ -4,7 +4,7 @@ High-performance CSV parser with SIMD optimizations for PHP.
 
 ## Requirements
 
-- PHP 7.4+ or PHP 8.x
+- PHP 8.1+
 - PHP development headers (`php-dev`)
 - CISV core library
 
@@ -21,8 +21,8 @@ make
 
 ```bash
 phpize
-./configure --with-cisv
-make
+./configure --enable-cisv
+make -j"$(nproc)"
 sudo make install
 ```
 

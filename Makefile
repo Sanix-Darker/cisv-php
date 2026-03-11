@@ -3,7 +3,7 @@ all: core php
 core:
 	$(MAKE) -C core/core all
 php: core
-	cd cisv && phpize && ./configure --enable-cisv && $(MAKE)
+	cd cisv && phpize && ./configure --enable-cisv && $(MAKE) -j"$$(nproc)"
 test: php
 	php -d extension=cisv/modules/cisv.so cisv/scripts/verify_api.php
 clean:

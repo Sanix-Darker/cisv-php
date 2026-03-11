@@ -164,9 +164,9 @@ if ($cisvAvailable) {
     $results['cisv-iterator'] = benchmark('cisv-iterator', function() use ($filepath) {
         $parser = new CisvParser();
         $parser->openIterator($filepath);
-        $rows = [];
+        $rows = 0;
         while (($row = $parser->fetchRow()) !== false) {
-            $rows[] = $row;
+            $rows++;
         }
         $parser->closeIterator();
         return $rows;

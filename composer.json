@@ -71,7 +71,7 @@
       "@check-deps",
       "@build-core",
       "echo 'Building PHP extension...'",
-      "cd cisv && phpize && ./configure --enable-cisv && make clean && make",
+      "cd cisv && phpize && ./configure --enable-cisv && make -j\"$(nproc)\"",
       "echo ''",
       "echo '✓ Build complete! Extension at: cisv/modules/cisv.so'",
       "echo ''",
