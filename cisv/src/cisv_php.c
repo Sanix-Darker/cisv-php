@@ -17,17 +17,14 @@
 #include "cisv/transformer.h"
 
 /* Extension information */
-#define PHP_CISV_VERSION "0.4.6"
+#define PHP_CISV_VERSION "0.4.7"
 #define PHP_CISV_EXTNAME "cisv"
 
 /* Parser object structure */
 typedef struct {
-    cisv_parser *parser;
     cisv_config config;
     cisv_transform_pipeline_t *pipeline;  /* Transform pipeline (may be NULL if unused) */
     cisv_iterator_t *iterator;            /* Row-by-row iterator (may be NULL) */
-    zval rows;        /* Embedded zval - safer memory management */
-    zval current_row; /* Embedded zval - safer memory management */
     zend_object std;
 } cisv_parser_object;
 
@@ -58,28 +55,23 @@ static void php_cisv_result_to_zval_rows(zval *rows, const cisv_result_t *result
     }
 }
 
-/* Callbacks */
-static void php_cisv_field_callback(void *user, const char *data, size_t len) {
-    cisv_parser_object *obj = (cisv_parser_object *)user;
-    zval field;
-    ZVAL_STRINGL(&field, data, len);
-    add_next_index_zval(&obj->current_row, &field);
-}
+static zend_bool php_cisv_validate_char_option(const char *name, const char *value, size_t value_len) {
+    if (value_len != 1) {
+        zend_throw_exception_ex(zend_ce_exception, 0, "%s must be exactly 1 character", name);
+        return 0;
+    }
 
-static void php_cisv_row_callback(void *user) {
-    cisv_parser_object *obj = (cisv_parser_object *)user;
+    if (value[0] == '\0' || value[0] == '\n' || value[0] == '\r') {
+        zend_throw_exception_ex(
+            zend_ce_exception,
+            0,
+            "Invalid %s character (NUL, newline, or carriage return not allowed)",
+            name
+        );
+        return 0;
+    }
 
-    /* Add current row to rows array */
-    zval row_copy;
-    ZVAL_COPY(&row_copy, &obj->current_row);
-    add_next_index_zval(&obj->rows, &row_copy);
-
-    /* Clear current row for next - properly reinitialize the zval */
-    /* First destroy the old array data */
-    zval_ptr_dtor(&obj->current_row);
-    /* Then reinitialize the zval structure before calling array_init */
-    ZVAL_UNDEF(&obj->current_row);
-    array_init(&obj->current_row);
+    return 1;
 }
 
 /* Create object */
@@ -99,21 +91,12 @@ static zend_object *cisv_parser_create_object(zend_class_entry *ce) {
     /* Initialize iterator to NULL */
     intern->iterator = NULL;
 
-    /* Initialize embedded zvals - no separate allocation needed */
-    array_init(&intern->rows);
-    array_init(&intern->current_row);
-
     return &intern->std;
 }
 
 /* Free object */
 static void cisv_parser_free_object(zend_object *obj) {
     cisv_parser_object *intern = cisv_parser_from_obj(obj);
-
-    if (intern->parser) {
-        cisv_parser_destroy(intern->parser);
-        intern->parser = NULL;
-    }
 
     /* SECURITY FIX: Free transform pipeline to prevent memory leak */
     if (intern->pipeline) {
@@ -126,10 +109,6 @@ static void cisv_parser_free_object(zend_object *obj) {
         cisv_iterator_close(intern->iterator);
         intern->iterator = NULL;
     }
-
-    /* Destroy embedded zvals - no efree needed since they're embedded */
-    zval_ptr_dtor(&intern->rows);
-    zval_ptr_dtor(&intern->current_row);
 
     zend_object_std_dtor(&intern->std);
 }
@@ -151,23 +130,18 @@ PHP_METHOD(CisvParser, __construct) {
 
         if ((val = zend_hash_str_find(Z_ARRVAL_P(options), "delimiter", sizeof("delimiter") - 1)) != NULL) {
             if (Z_TYPE_P(val) == IS_STRING) {
-                /* SECURITY: Validate delimiter - must be exactly 1 character */
-                if (Z_STRLEN_P(val) != 1) {
-                    zend_throw_exception(zend_ce_exception, "Delimiter must be exactly 1 character", 0);
+                if (!php_cisv_validate_char_option("Delimiter", Z_STRVAL_P(val), Z_STRLEN_P(val))) {
                     return;
                 }
-                char delim = Z_STRVAL_P(val)[0];
-                /* SECURITY: Reject invalid delimiter characters */
-                if (delim == '\0' || delim == '\n' || delim == '\r') {
-                    zend_throw_exception(zend_ce_exception, "Invalid delimiter character (NUL, newline, or carriage return not allowed)", 0);
-                    return;
-                }
-                intern->config.delimiter = delim;
+                intern->config.delimiter = Z_STRVAL_P(val)[0];
             }
         }
 
         if ((val = zend_hash_str_find(Z_ARRVAL_P(options), "quote", sizeof("quote") - 1)) != NULL) {
-            if (Z_TYPE_P(val) == IS_STRING && Z_STRLEN_P(val) > 0) {
+            if (Z_TYPE_P(val) == IS_STRING) {
+                if (!php_cisv_validate_char_option("Quote", Z_STRVAL_P(val), Z_STRLEN_P(val))) {
+                    return;
+                }
                 intern->config.quote = Z_STRVAL_P(val)[0];
             }
         }
@@ -181,17 +155,9 @@ PHP_METHOD(CisvParser, __construct) {
         }
     }
 
-    /* Set callbacks */
-    intern->config.field_cb = php_cisv_field_callback;
-    intern->config.row_cb = php_cisv_row_callback;
-    intern->config.user = intern;
-
-    /* Create parser */
-    intern->parser = cisv_parser_create_with_config(&intern->config);
-    if (!intern->parser) {
-        zend_throw_exception(zend_ce_exception, "Failed to create parser", 0);
-        return;
-    }
+    intern->config.field_cb = NULL;
+    intern->config.row_cb = NULL;
+    intern->config.user = NULL;
 }
 
 /* PHP_METHOD(CisvParser, parseFile) */
@@ -270,26 +236,12 @@ PHP_METHOD(CisvParser, setDelimiter) {
         Z_PARAM_STRING(delimiter, delimiter_len)
     ZEND_PARSE_PARAMETERS_END();
 
-    /* SECURITY: Validate delimiter - must be exactly 1 character */
-    if (delimiter_len != 1) {
-        zend_throw_exception(zend_ce_exception, "Delimiter must be exactly 1 character", 0);
-        return;
-    }
-
-    /* SECURITY: Reject invalid delimiter characters */
-    if (delimiter[0] == '\0' || delimiter[0] == '\n' || delimiter[0] == '\r') {
-        zend_throw_exception(zend_ce_exception, "Invalid delimiter character (NUL, newline, or carriage return not allowed)", 0);
+    if (!php_cisv_validate_char_option("Delimiter", delimiter, delimiter_len)) {
         return;
     }
 
     cisv_parser_object *intern = Z_CISV_PARSER_P(ZEND_THIS);
     intern->config.delimiter = delimiter[0];
-
-    /* Recreate parser with new config */
-    if (intern->parser) {
-        cisv_parser_destroy(intern->parser);
-    }
-    intern->parser = cisv_parser_create_with_config(&intern->config);
 
     RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
@@ -303,19 +255,12 @@ PHP_METHOD(CisvParser, setQuote) {
         Z_PARAM_STRING(quote, quote_len)
     ZEND_PARSE_PARAMETERS_END();
 
-    if (quote_len == 0) {
-        zend_throw_exception(zend_ce_exception, "Quote character cannot be empty", 0);
+    if (!php_cisv_validate_char_option("Quote", quote, quote_len)) {
         return;
     }
 
     cisv_parser_object *intern = Z_CISV_PARSER_P(ZEND_THIS);
     intern->config.quote = quote[0];
-
-    /* Recreate parser with new config */
-    if (intern->parser) {
-        cisv_parser_destroy(intern->parser);
-    }
-    intern->parser = cisv_parser_create_with_config(&intern->config);
 
     RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
@@ -331,6 +276,11 @@ PHP_METHOD(CisvParser, parseFileParallel) {
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(num_threads)
     ZEND_PARSE_PARAMETERS_END();
+
+    if (num_threads < 0) {
+        zend_throw_exception(zend_ce_exception, "num_threads must be >= 0", 0);
+        return;
+    }
 
     cisv_parser_object *intern = Z_CISV_PARSER_P(ZEND_THIS);
 
@@ -390,6 +340,11 @@ PHP_METHOD(CisvParser, parseFileBenchmark) {
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(num_threads)
     ZEND_PARSE_PARAMETERS_END();
+
+    if (num_threads < 0) {
+        zend_throw_exception(zend_ce_exception, "num_threads must be >= 0", 0);
+        return;
+    }
 
     cisv_parser_object *intern = Z_CISV_PARSER_P(ZEND_THIS);
 
