@@ -51,7 +51,11 @@ if ($missing !== []) {
 function cisv_assert_same(mixed $expected, mixed $actual, string $label): void
 {
     if ($expected !== $actual) {
-        fwrite(STDERR, "[cisv][php-api] {$label}: expected {$expected}, got {$actual}\n");
+        fwrite(
+            STDERR,
+            "[cisv][php-api] {$label}: expected " . var_export($expected, true)
+                . ', got ' . var_export($actual, true) . "\n"
+        );
         exit(1);
     }
 }
@@ -69,6 +73,78 @@ function cisv_assert_throws(callable $fn, string $label): void
 }
 
 $tmpBase = sys_get_temp_dir() . '/cisv_php_count_' . getmypid();
+
+$configuredParser = new CisvParser([
+    'escape' => '\\',
+    'comment' => '#',
+    'trim' => true,
+    'from_line' => 1,
+    'to_line' => 3,
+]);
+cisv_assert_same(
+    [
+        ['id', 'msg'],
+        ['1', 'hello "quoted"'],
+    ],
+    $configuredParser->parseString("  #skip\nid,msg\n1,\"hello \\\"quoted\\\"\"\n2,tail\n"),
+    'parseString constructor controls'
+);
+
+$skipEmptyParser = new CisvParser(['skip_empty' => true]);
+cisv_assert_same(
+    [
+        ['a', 'b', 'c'],
+        ['', '', ''],
+        ['1', '2', '3'],
+    ],
+    $skipEmptyParser->parseString("a,b,c\n\n,,\n1,2,3\n"),
+    'parseString skip_empty preserves empty fields'
+);
+
+$parseFile = $tmpBase . '_parse.csv';
+file_put_contents($parseFile, "  #skip\nid,msg\n1,\"hello \\\"quoted\\\"\"\n2,tail\n");
+cisv_assert_same(
+    [
+        ['id', 'msg'],
+        ['1', 'hello "quoted"'],
+    ],
+    $configuredParser->parseFile($parseFile),
+    'parseFile constructor controls'
+);
+unlink($parseFile);
+
+cisv_assert_throws(
+    static fn() => (new CisvParser(['max_row_size' => 8]))->parseString("a,b\n123456789,2\n"),
+    'parseString max_row_size'
+);
+cisv_assert_throws(
+    static fn() => new CisvParser(['delimiter' => '"']),
+    'constructor delimiter quote conflict'
+);
+cisv_assert_throws(
+    static fn() => new CisvParser(['escape' => ',']),
+    'constructor escape delimiter conflict'
+);
+cisv_assert_throws(
+    static fn() => new CisvParser(['comment' => ',']),
+    'constructor comment delimiter conflict'
+);
+cisv_assert_throws(
+    static fn() => new CisvParser(['from_line' => 3, 'to_line' => 2]),
+    'constructor invalid range'
+);
+cisv_assert_throws(
+    static fn() => new CisvParser(['max_row_size' => '8']),
+    'constructor max_row_size type'
+);
+cisv_assert_throws(
+    static fn() => (new CisvParser())->setDelimiter('"'),
+    'setDelimiter validates quote conflict'
+);
+cisv_assert_throws(
+    static fn() => (new CisvParser())->setQuote(','),
+    'setQuote validates delimiter conflict'
+);
 
 $controlsFile = $tmpBase . '_controls.csv';
 file_put_contents($controlsFile, "  #skip\n\nh1,h2\n,,\n\"#keep\",x\n");
@@ -99,6 +175,18 @@ file_put_contents($invalidFile, "a,b\n1,2\n");
 cisv_assert_throws(
     static fn() => CisvParser::countRows($invalidFile, ['escape' => 'xx']),
     'countRows invalid escape'
+);
+cisv_assert_throws(
+    static fn() => CisvParser::countRows($invalidFile, ['delimiter' => '"']),
+    'countRows delimiter quote conflict'
+);
+cisv_assert_throws(
+    static fn() => CisvParser::countRows($invalidFile, ['escape' => ',']),
+    'countRows escape delimiter conflict'
+);
+cisv_assert_throws(
+    static fn() => CisvParser::countRows($invalidFile, ['max_row_size' => '8']),
+    'countRows max_row_size type'
 );
 cisv_assert_throws(
     static fn() => CisvParser::countRows($invalidFile, ['from_line' => 3, 'to_line' => 2]),

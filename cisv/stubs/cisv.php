@@ -20,8 +20,16 @@ if (false) {
          * @param array{
          *     delimiter?: string,
          *     quote?: string,
+         *     escape?: string|null,
+         *     comment?: string|null,
          *     trim?: bool,
-         *     skip_empty?: bool
+         *     skip_empty?: bool,
+         *     skip_empty_lines?: bool,
+         *     relaxed?: bool,
+         *     skip_lines_with_error?: bool,
+         *     max_row_size?: int,
+         *     from_line?: int,
+         *     to_line?: int
          * } $options Configuration options
          */
         public function __construct(array $options = []) {}
