@@ -110,6 +110,16 @@ cisv_assert_same(
     'parseString skip_empty preserves empty fields'
 );
 
+$crOnlyParser = new CisvParser();
+cisv_assert_same(
+    [
+        ['a', 'b'],
+        ["line1\rline2", 'c'],
+    ],
+    $crOnlyParser->parseString("a,b\r\"line1\rline2\",c\r"),
+    'parseString CR-only line endings'
+);
+
 $parseFile = $tmpBase . '_parse.csv';
 file_put_contents($parseFile, "  #skip\nid,msg\n1,\"hello \\\"quoted\\\"\"\n2,tail\n");
 cisv_assert_same(
@@ -121,6 +131,17 @@ cisv_assert_same(
     'parseFile constructor controls'
 );
 unlink($parseFile);
+
+$crOnlyFile = $tmpBase . '_cr_only.csv';
+file_put_contents($crOnlyFile, "a,b\r\"line1\rline2\",c\r");
+cisv_assert_same(
+    [
+        ['a', 'b'],
+        ["line1\rline2", 'c'],
+    ],
+    $crOnlyParser->parseFile($crOnlyFile),
+    'parseFile CR-only line endings'
+);
 
 $iteratorFile = $tmpBase . '_iterator.csv';
 file_put_contents($iteratorFile, "  #skip\nid,msg\n1,\"hello \\\"quoted\\\"\"\n2,tail\n");
@@ -135,6 +156,17 @@ cisv_assert_same(
 );
 $configuredParser->closeIterator();
 unlink($iteratorFile);
+
+$crOnlyParser->openIterator($crOnlyFile);
+cisv_assert_same(
+    [
+        ['a', 'b'],
+        ["line1\rline2", 'c'],
+    ],
+    cisv_fetch_all($crOnlyParser),
+    'iterator CR-only line endings'
+);
+$crOnlyParser->closeIterator();
 
 $iteratorEmptyFile = $tmpBase . '_iterator_empty.csv';
 file_put_contents($iteratorEmptyFile, "\n\"\"\n#skip\n\"#keep\"\n,,\n");
@@ -260,6 +292,9 @@ cisv_assert_same(2, CisvParser::countRows($escapeFile, [
     'escape' => '\\',
 ]), 'countRows custom escape');
 unlink($escapeFile);
+
+cisv_assert_same(2, CisvParser::countRows($crOnlyFile), 'countRows CR-only line endings');
+unlink($crOnlyFile);
 
 $invalidFile = $tmpBase . '_invalid.csv';
 file_put_contents($invalidFile, "a,b\n1,2\n");
