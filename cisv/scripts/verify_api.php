@@ -175,6 +175,39 @@ cisv_assert_throws(
     'iterator max_row_size'
 );
 unlink($iteratorLimitFile);
+
+$iteratorBadAfterQuoteFile = $tmpBase . '_iterator_bad_after_quote.csv';
+file_put_contents($iteratorBadAfterQuoteFile, "\"a\"x,b\n");
+cisv_assert_throws(
+    static function () use ($iteratorBadAfterQuoteFile): void {
+        $parser = new CisvParser();
+        $parser->openIterator($iteratorBadAfterQuoteFile);
+        try {
+            cisv_fetch_all($parser);
+        } finally {
+            $parser->closeIterator();
+        }
+    },
+    'iterator malformed quote'
+);
+unlink($iteratorBadAfterQuoteFile);
+
+$iteratorBadUnterminatedFile = $tmpBase . '_iterator_bad_unterminated.csv';
+file_put_contents($iteratorBadUnterminatedFile, "\"unterminated\n");
+cisv_assert_throws(
+    static function () use ($iteratorBadUnterminatedFile): void {
+        $parser = new CisvParser();
+        $parser->openIterator($iteratorBadUnterminatedFile);
+        try {
+            cisv_fetch_all($parser);
+        } finally {
+            $parser->closeIterator();
+        }
+    },
+    'iterator unterminated quote'
+);
+unlink($iteratorBadUnterminatedFile);
+
 cisv_assert_throws(
     static fn() => new CisvParser(['delimiter' => '"']),
     'constructor delimiter quote conflict'
