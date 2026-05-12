@@ -47,10 +47,24 @@ if (false) {
          * Count rows in a CSV file without full parsing.
          *
          * @param string $filename Path to CSV file
+         * @param array{
+         *     delimiter?: string,
+         *     quote?: string,
+         *     escape?: string|null,
+         *     comment?: string|null,
+         *     trim?: bool,
+         *     skip_empty?: bool,
+         *     skip_empty_lines?: bool,
+         *     relaxed?: bool,
+         *     skip_lines_with_error?: bool,
+         *     max_row_size?: int,
+         *     from_line?: int,
+         *     to_line?: int
+         * } $options Count configuration options
          * @return int Number of rows
          * @throws \RuntimeException If file cannot be read
          */
-        public static function countRows(string $filename): int {}
+        public static function countRows(string $filename, array $options = []): int {}
 
         /**
          * Set the field delimiter.

@@ -48,4 +48,62 @@ if ($missing !== []) {
     exit(1);
 }
 
+function cisv_assert_same(mixed $expected, mixed $actual, string $label): void
+{
+    if ($expected !== $actual) {
+        fwrite(STDERR, "[cisv][php-api] {$label}: expected {$expected}, got {$actual}\n");
+        exit(1);
+    }
+}
+
+function cisv_assert_throws(callable $fn, string $label): void
+{
+    try {
+        $fn();
+    } catch (Throwable) {
+        return;
+    }
+
+    fwrite(STDERR, "[cisv][php-api] {$label}: expected exception\n");
+    exit(1);
+}
+
+$tmpBase = sys_get_temp_dir() . '/cisv_php_count_' . getmypid();
+
+$controlsFile = $tmpBase . '_controls.csv';
+file_put_contents($controlsFile, "  #skip\n\nh1,h2\n,,\n\"#keep\",x\n");
+cisv_assert_same(3, CisvParser::countRows($controlsFile, [
+    'comment' => '#',
+    'trim' => true,
+    'skip_empty' => true,
+]), 'countRows semantic controls');
+unlink($controlsFile);
+
+$rangeFile = $tmpBase . '_range.csv';
+file_put_contents($rangeFile, "a\nb\nc\nd\n");
+cisv_assert_same(2, CisvParser::countRows($rangeFile, [
+    'from_line' => 2,
+    'to_line' => 3,
+]), 'countRows line range');
+unlink($rangeFile);
+
+$escapeFile = $tmpBase . '_escape.csv';
+file_put_contents($escapeFile, "id,payload\n1,\"line1\\\nline2 with \\\"quote\\\"\"\n");
+cisv_assert_same(2, CisvParser::countRows($escapeFile, [
+    'escape' => '\\',
+]), 'countRows custom escape');
+unlink($escapeFile);
+
+$invalidFile = $tmpBase . '_invalid.csv';
+file_put_contents($invalidFile, "a,b\n1,2\n");
+cisv_assert_throws(
+    static fn() => CisvParser::countRows($invalidFile, ['escape' => 'xx']),
+    'countRows invalid escape'
+);
+cisv_assert_throws(
+    static fn() => CisvParser::countRows($invalidFile, ['from_line' => 3, 'to_line' => 2]),
+    'countRows invalid range'
+);
+unlink($invalidFile);
+
 echo "[cisv][php-api] OK: all required methods are exported\n";

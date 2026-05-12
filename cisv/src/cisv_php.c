@@ -11,6 +11,7 @@
 #include "php_ini.h"
 #include "ext/standard/info.h"
 #include "zend_exceptions.h"
+#include <limits.h>
 
 #include "cisv/parser.h"
 #include "cisv/writer.h"
@@ -71,6 +72,26 @@ static zend_bool php_cisv_validate_char_option(const char *name, const char *val
         return 0;
     }
 
+    return 1;
+}
+
+static zend_bool php_cisv_apply_optional_char_option(const char *name, zval *val, char *target) {
+    if (Z_TYPE_P(val) == IS_NULL) {
+        *target = '\0';
+        return 1;
+    }
+    if (Z_TYPE_P(val) != IS_STRING) {
+        zend_throw_exception_ex(zend_ce_exception, 0, "%s must be a string or null", name);
+        return 0;
+    }
+    if (Z_STRLEN_P(val) == 0) {
+        *target = '\0';
+        return 1;
+    }
+    if (!php_cisv_validate_char_option(name, Z_STRVAL_P(val), Z_STRLEN_P(val))) {
+        return 0;
+    }
+    *target = Z_STRVAL_P(val)[0];
     return 1;
 }
 
@@ -218,12 +239,100 @@ PHP_METHOD(CisvParser, parseString) {
 PHP_METHOD(CisvParser, countRows) {
     char *filename;
     size_t filename_len;
+    zval *options = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_STRING(filename, filename_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY(options)
     ZEND_PARSE_PARAMETERS_END();
 
-    size_t count = cisv_parser_count_rows(filename);
+    cisv_config config;
+    cisv_config_init(&config);
+
+    if (options) {
+        zval *val;
+
+        if ((val = zend_hash_str_find(Z_ARRVAL_P(options), "delimiter", sizeof("delimiter") - 1)) != NULL) {
+            if (Z_TYPE_P(val) != IS_STRING || !php_cisv_validate_char_option("Delimiter", Z_STRVAL_P(val), Z_STRLEN_P(val))) {
+                return;
+            }
+            config.delimiter = Z_STRVAL_P(val)[0];
+        }
+
+        if ((val = zend_hash_str_find(Z_ARRVAL_P(options), "quote", sizeof("quote") - 1)) != NULL) {
+            if (Z_TYPE_P(val) != IS_STRING || !php_cisv_validate_char_option("Quote", Z_STRVAL_P(val), Z_STRLEN_P(val))) {
+                return;
+            }
+            config.quote = Z_STRVAL_P(val)[0];
+        }
+
+        if ((val = zend_hash_str_find(Z_ARRVAL_P(options), "escape", sizeof("escape") - 1)) != NULL) {
+            if (!php_cisv_apply_optional_char_option("Escape", val, &config.escape)) {
+                return;
+            }
+        }
+
+        if ((val = zend_hash_str_find(Z_ARRVAL_P(options), "comment", sizeof("comment") - 1)) != NULL) {
+            if (!php_cisv_apply_optional_char_option("Comment", val, &config.comment)) {
+                return;
+            }
+        }
+
+        if ((val = zend_hash_str_find(Z_ARRVAL_P(options), "trim", sizeof("trim") - 1)) != NULL) {
+            config.trim = zend_is_true(val);
+        }
+
+        if ((val = zend_hash_str_find(Z_ARRVAL_P(options), "skip_empty", sizeof("skip_empty") - 1)) != NULL) {
+            config.skip_empty_lines = zend_is_true(val);
+        }
+        if ((val = zend_hash_str_find(Z_ARRVAL_P(options), "skip_empty_lines", sizeof("skip_empty_lines") - 1)) != NULL) {
+            config.skip_empty_lines = zend_is_true(val);
+        }
+
+        if ((val = zend_hash_str_find(Z_ARRVAL_P(options), "relaxed", sizeof("relaxed") - 1)) != NULL) {
+            config.relaxed = zend_is_true(val);
+        }
+
+        if ((val = zend_hash_str_find(Z_ARRVAL_P(options), "skip_lines_with_error", sizeof("skip_lines_with_error") - 1)) != NULL) {
+            config.skip_lines_with_error = zend_is_true(val);
+        }
+
+        if ((val = zend_hash_str_find(Z_ARRVAL_P(options), "max_row_size", sizeof("max_row_size") - 1)) != NULL) {
+            zend_long max_row_size = zval_get_long(val);
+            if (max_row_size < 0) {
+                zend_throw_exception_ex(zend_ce_exception, 0, "max_row_size must be >= 0");
+                return;
+            }
+            config.max_row_size = (size_t)max_row_size;
+        }
+
+        if ((val = zend_hash_str_find(Z_ARRVAL_P(options), "from_line", sizeof("from_line") - 1)) != NULL) {
+            zend_long from_line = zval_get_long(val);
+            if (from_line < 0 || from_line > INT_MAX) {
+                zend_throw_exception_ex(zend_ce_exception, 0, "from_line is out of range");
+                return;
+            }
+            config.from_line = (int)from_line;
+        }
+
+        if ((val = zend_hash_str_find(Z_ARRVAL_P(options), "to_line", sizeof("to_line") - 1)) != NULL) {
+            zend_long to_line = zval_get_long(val);
+            if (to_line < 0 || to_line > INT_MAX) {
+                zend_throw_exception_ex(zend_ce_exception, 0, "to_line is out of range");
+                return;
+            }
+            config.to_line = (int)to_line;
+        }
+
+        int effective_from = config.from_line > 0 ? config.from_line : 1;
+        if (config.to_line != 0 && config.to_line < effective_from) {
+            zend_throw_exception_ex(zend_ce_exception, 0, "to_line must be >= from_line");
+            return;
+        }
+    }
+
+    size_t count = cisv_parser_count_rows_with_config(filename, &config);
     RETURN_LONG((zend_long)count);
 }
 
@@ -475,6 +584,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_cisv_countRows, 0, 1, IS_LONG, 0)
     ZEND_ARG_TYPE_INFO(0, filename, IS_STRING, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, options, IS_ARRAY, 0, "[]")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_cisv_setDelimiter, 0, 1, CisvParser, 0)
