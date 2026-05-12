@@ -12,6 +12,7 @@
 #include "ext/standard/info.h"
 #include "zend_exceptions.h"
 #include <limits.h>
+#include <stdint.h>
 
 #include "cisv/parser.h"
 #include "cisv/writer.h"
@@ -39,8 +40,30 @@ static inline cisv_parser_object *cisv_parser_from_obj(zend_object *obj) {
 
 #define Z_CISV_PARSER_P(zv) cisv_parser_from_obj(Z_OBJ_P(zv))
 
+static uint32_t php_cisv_array_size_hint(size_t count) {
+    return count > UINT32_MAX ? UINT32_MAX : (uint32_t)count;
+}
+
+static zend_bool php_cisv_size_to_zend_long(size_t value, const char *name, zend_long *out) {
+    if (value > (size_t)ZEND_LONG_MAX) {
+        zend_throw_exception_ex(zend_ce_exception, 0, "%s exceeds PHP integer range", name);
+        return 0;
+    }
+    *out = (zend_long)value;
+    return 1;
+}
+
+static zend_bool php_cisv_add_size_checked(size_t *target, size_t value, const char *name) {
+    if (value > SIZE_MAX - *target) {
+        zend_throw_exception_ex(zend_ce_exception, 0, "%s overflow", name);
+        return 0;
+    }
+    *target += value;
+    return 1;
+}
+
 static void php_cisv_result_to_zval_rows(zval *rows, const cisv_result_t *result) {
-    array_init_size(rows, result ? (uint32_t)result->row_count : 0);
+    array_init_size(rows, result ? php_cisv_array_size_hint(result->row_count) : 0);
     if (!result) {
         return;
     }
@@ -48,7 +71,7 @@ static void php_cisv_result_to_zval_rows(zval *rows, const cisv_result_t *result
     for (size_t i = 0; i < result->row_count; i++) {
         const cisv_row_t *r = &result->rows[i];
         zval row;
-        array_init_size(&row, (uint32_t)r->field_count);
+        array_init_size(&row, php_cisv_array_size_hint(r->field_count));
         for (size_t j = 0; j < r->field_count; j++) {
             add_next_index_stringl(&row, r->fields[j], r->field_lengths[j]);
         }
@@ -367,7 +390,11 @@ PHP_METHOD(CisvParser, countRows) {
     }
 
     size_t count = cisv_parser_count_rows_with_config(filename, &config);
-    RETURN_LONG((zend_long)count);
+    zend_long php_count;
+    if (!php_cisv_size_to_zend_long(count, "row count", &php_count)) {
+        return;
+    }
+    RETURN_LONG(php_count);
 }
 
 /* PHP_METHOD(CisvParser, setDelimiter) */
@@ -456,12 +483,15 @@ PHP_METHOD(CisvParser, parseFileParallel) {
             cisv_results_free(results, result_count);
             return;
         }
-        total_rows += result->row_count;
+        if (!php_cisv_add_size_checked(&total_rows, result->row_count, "row count")) {
+            cisv_results_free(results, result_count);
+            return;
+        }
     }
 
     /* Build result array from all chunks */
     zval rows;
-    array_init_size(&rows, (uint32_t)total_rows);
+    array_init_size(&rows, php_cisv_array_size_hint(total_rows));
 
     for (int chunk = 0; chunk < result_count; chunk++) {
         cisv_result_t *result = results[chunk];
@@ -470,7 +500,7 @@ PHP_METHOD(CisvParser, parseFileParallel) {
         for (size_t i = 0; i < result->row_count; i++) {
             zval row;
             cisv_row_t *r = &result->rows[i];
-            array_init_size(&row, (uint32_t)r->field_count);
+            array_init_size(&row, php_cisv_array_size_hint(r->field_count));
             for (size_t j = 0; j < r->field_count; j++) {
                 add_next_index_stringl(&row, r->fields[j], r->field_lengths[j]);
             }
@@ -525,17 +555,26 @@ PHP_METHOD(CisvParser, parseFileBenchmark) {
             return;
         }
 
-        total_rows += result->row_count;
-        total_fields += result->total_fields;
+        if (!php_cisv_add_size_checked(&total_rows, result->row_count, "row count") ||
+            !php_cisv_add_size_checked(&total_fields, result->total_fields, "field count")) {
+            cisv_results_free(results, result_count);
+            return;
+        }
     }
 
     cisv_results_free(results, result_count);
 
     /* Return array with counts */
     zval result_arr;
+    zend_long php_rows;
+    zend_long php_fields;
+    if (!php_cisv_size_to_zend_long(total_rows, "row count", &php_rows) ||
+        !php_cisv_size_to_zend_long(total_fields, "field count", &php_fields)) {
+        return;
+    }
     array_init(&result_arr);
-    add_assoc_long(&result_arr, "rows", (zend_long)total_rows);
-    add_assoc_long(&result_arr, "fields", (zend_long)total_fields);
+    add_assoc_long(&result_arr, "rows", php_rows);
+    add_assoc_long(&result_arr, "fields", php_fields);
     RETURN_ZVAL(&result_arr, 0, 1);
 }
 
@@ -593,7 +632,7 @@ PHP_METHOD(CisvParser, fetchRow) {
     }
 
     /* Build PHP array */
-    array_init_size(return_value, (uint32_t)field_count);
+    array_init_size(return_value, php_cisv_array_size_hint(field_count));
     for (size_t i = 0; i < field_count; i++) {
         add_next_index_stringl(return_value, fields[i], lengths[i]);
     }

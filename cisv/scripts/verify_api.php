@@ -72,6 +72,15 @@ function cisv_assert_throws(callable $fn, string $label): void
     exit(1);
 }
 
+function cisv_fetch_all(CisvParser $parser): array
+{
+    $rows = [];
+    while (($row = $parser->fetchRow()) !== false) {
+        $rows[] = $row;
+    }
+    return $rows;
+}
+
 $tmpBase = sys_get_temp_dir() . '/cisv_php_count_' . getmypid();
 
 $configuredParser = new CisvParser([
@@ -113,10 +122,59 @@ cisv_assert_same(
 );
 unlink($parseFile);
 
+$iteratorFile = $tmpBase . '_iterator.csv';
+file_put_contents($iteratorFile, "  #skip\nid,msg\n1,\"hello \\\"quoted\\\"\"\n2,tail\n");
+$configuredParser->openIterator($iteratorFile);
+cisv_assert_same(
+    [
+        ['id', 'msg'],
+        ['1', 'hello "quoted"'],
+    ],
+    cisv_fetch_all($configuredParser),
+    'iterator constructor controls'
+);
+$configuredParser->closeIterator();
+unlink($iteratorFile);
+
+$iteratorEmptyFile = $tmpBase . '_iterator_empty.csv';
+file_put_contents($iteratorEmptyFile, "\n\"\"\n#skip\n\"#keep\"\n,,\n");
+$iteratorEmptyParser = new CisvParser([
+    'comment' => '#',
+    'skip_empty' => true,
+]);
+$iteratorEmptyParser->openIterator($iteratorEmptyFile);
+cisv_assert_same(
+    [
+        [''],
+        ['#keep'],
+        ['', '', ''],
+    ],
+    cisv_fetch_all($iteratorEmptyParser),
+    'iterator skip_empty preserves quoted empty and quoted comment rows'
+);
+$iteratorEmptyParser->closeIterator();
+unlink($iteratorEmptyFile);
+
 cisv_assert_throws(
     static fn() => (new CisvParser(['max_row_size' => 8]))->parseString("a,b\n123456789,2\n"),
     'parseString max_row_size'
 );
+
+$iteratorLimitFile = $tmpBase . '_iterator_limit.csv';
+file_put_contents($iteratorLimitFile, "a,b\n123456789,2\n");
+cisv_assert_throws(
+    static function () use ($iteratorLimitFile): void {
+        $parser = new CisvParser(['max_row_size' => 8]);
+        $parser->openIterator($iteratorLimitFile);
+        try {
+            cisv_fetch_all($parser);
+        } finally {
+            $parser->closeIterator();
+        }
+    },
+    'iterator max_row_size'
+);
+unlink($iteratorLimitFile);
 cisv_assert_throws(
     static fn() => new CisvParser(['delimiter' => '"']),
     'constructor delimiter quote conflict'
