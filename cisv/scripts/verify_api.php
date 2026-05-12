@@ -120,6 +120,19 @@ cisv_assert_same(
     'parseString CR-only line endings'
 );
 
+cisv_assert_throws(
+    static fn() => (new CisvParser())->parseString("a\"b,c\n"),
+    'parseString bare quote strict'
+);
+$relaxedBareQuoteParser = new CisvParser(['relaxed' => true]);
+cisv_assert_same(
+    [
+        ['a"b', 'c'],
+    ],
+    $relaxedBareQuoteParser->parseString("a\"b,c\n"),
+    'parseString bare quote relaxed'
+);
+
 $parseFile = $tmpBase . '_parse.csv';
 file_put_contents($parseFile, "  #skip\nid,msg\n1,\"hello \\\"quoted\\\"\"\n2,tail\n");
 cisv_assert_same(
@@ -224,6 +237,31 @@ cisv_assert_throws(
 );
 unlink($iteratorBadAfterQuoteFile);
 
+$iteratorBareQuoteFile = $tmpBase . '_iterator_bare_quote.csv';
+file_put_contents($iteratorBareQuoteFile, "a\"b,c\n");
+cisv_assert_throws(
+    static function () use ($iteratorBareQuoteFile): void {
+        $parser = new CisvParser();
+        $parser->openIterator($iteratorBareQuoteFile);
+        try {
+            cisv_fetch_all($parser);
+        } finally {
+            $parser->closeIterator();
+        }
+    },
+    'iterator bare quote strict'
+);
+$relaxedBareQuoteParser->openIterator($iteratorBareQuoteFile);
+cisv_assert_same(
+    [
+        ['a"b', 'c'],
+    ],
+    cisv_fetch_all($relaxedBareQuoteParser),
+    'iterator bare quote relaxed'
+);
+$relaxedBareQuoteParser->closeIterator();
+unlink($iteratorBareQuoteFile);
+
 $iteratorBadUnterminatedFile = $tmpBase . '_iterator_bad_unterminated.csv';
 file_put_contents($iteratorBadUnterminatedFile, "\"unterminated\n");
 cisv_assert_throws(
@@ -295,6 +333,14 @@ unlink($escapeFile);
 
 cisv_assert_same(2, CisvParser::countRows($crOnlyFile), 'countRows CR-only line endings');
 unlink($crOnlyFile);
+
+$bareQuoteFile = $tmpBase . '_bare_quote.csv';
+file_put_contents($bareQuoteFile, "a\"b,c\n");
+cisv_assert_same(0, CisvParser::countRows($bareQuoteFile), 'countRows bare quote strict');
+cisv_assert_same(1, CisvParser::countRows($bareQuoteFile, [
+    'relaxed' => true,
+]), 'countRows bare quote relaxed');
+unlink($bareQuoteFile);
 
 $invalidFile = $tmpBase . '_invalid.csv';
 file_put_contents($invalidFile, "a,b\n1,2\n");
