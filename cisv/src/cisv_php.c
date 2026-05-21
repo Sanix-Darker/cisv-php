@@ -19,7 +19,7 @@
 #include "cisv/transformer.h"
 
 /* Extension information */
-#define PHP_CISV_VERSION "0.5.0"
+#define PHP_CISV_VERSION "0.6.0"
 #define PHP_CISV_EXTNAME "cisv"
 
 /* Parser object structure */
